@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --color-paper: #f5f5f1;
+  --color-paper-raised: #ffffff;
+  --color-ink: #1f2a24;
+  --color-ink-muted: #5b6660;
+  --color-border: #ddd9cd;
+  --color-primary: #2f6f4e;
+  --color-primary-hover: #24573d;
+  --color-accent: #b8862b;
+  --color-danger: #a63d40;
+  --color-danger-bg: #f6e9e9;
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-paper-raised: var(--color-paper-raised);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-border: var(--color-border);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-accent: var(--color-accent);
+  --color-danger: var(--color-danger);
+  --color-danger-bg: var(--color-danger-bg);
+  --font-heading: var(--font-roboto-slab);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: var(--font-heading), ui-serif, Georgia, serif;
+}
+
+/* Tabular numerals everywhere numbers appear */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+  }
+}
