@@ -8,6 +8,8 @@ const LINKS = [
   { href: "/products", label: "Products" },
   { href: "/billing", label: "New bill" },
   { href: "/bills", label: "Bill history" },
+  { href: "/purchases", label: "Purchases" },
+  { href: "/purchases/history", label: "Purchase History" },
 ];
 
 export default function Sidebar() {
