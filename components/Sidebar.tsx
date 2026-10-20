@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Overview" },
   { href: "/products", label: "Products" },
   { href: "/billing", label: "New bill" },
+  { href: "/purchasing", label: "New Purchase" },
   { href: "/bills", label: "Bill history" },
   { href: "/purchases", label: "Purchases" },
   { href: "/purchases/history", label: "Purchase History" },
