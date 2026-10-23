@@ -14,11 +14,19 @@ type Product = {
 
 type CartLine = { product: Product; quantity: number };
 
+type Customer = {
+  id: string;
+  name: string;
+  balance: number;
+};
+
 export default function BillingPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +36,13 @@ export default function BillingPage() {
       .then(setProducts);
   }, []);
 
+  useEffect(() => {
+    fetch("/api/customers")
+      .then((res) => res.json())
+      .then(setCustomers)
+      .catch(() => setCustomers([]));
+  }, []);
+
   const filtered = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
@@ -35,6 +50,8 @@ export default function BillingPage() {
       .filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
       .slice(0, 8);
   }, [query, products]);
+
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -69,6 +86,7 @@ export default function BillingPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: cart.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
+        customerId: selectedCustomerId || null,
       }),
     });
     setSubmitting(false);
@@ -84,6 +102,27 @@ export default function BillingPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="font-heading text-2xl mb-6">New bill</h1>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Customer</label>
+        <select
+          value={selectedCustomerId}
+          onChange={(e) => setSelectedCustomerId(e.target.value)}
+          className="w-full rounded border border-[var(--color-border)] px-3 py-2 text-sm bg-[var(--color-paper-raised)]"
+        >
+          <option value="">Walk-in (no customer)</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} (Balance: {formatMoney(c.balance)})
+            </option>
+          ))}
+        </select>
+        {selectedCustomer && (
+          <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
+            Current balance: <span className="tnum font-medium">{formatMoney(selectedCustomer.balance)}</span>
+          </p>
+        )}
+      </div>
 
       <div className="relative mb-6">
         <input
@@ -121,54 +160,26 @@ export default function BillingPage() {
         </p>
       ) : (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-paper-raised)]">
-          {cart.map((line) => (
-            <div
-              key={line.product.id}
-              className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3 last:border-b-0"
-            >
-              <div>
-                <p className="text-sm">{line.product.name}</p>
-                <p className="text-xs text-[var(--color-ink-muted)]">
-                  {formatMoney(line.product.price)} each
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min={0}
-                  max={line.product.stock}
-                  value={line.quantity}
-                  onChange={(e) =>
-                    updateQuantity(line.product.id, parseInt(e.target.value || "0", 10))
-                  }
-                  className="w-16 rounded border border-[var(--color-border)] px-2 py-1 text-right text-sm tnum"
-                />
-                <p className="w-20 text-right text-sm tnum">
-                  {formatMoney(Number(line.product.price) * line.quantity)}
-                </p>
-              </div>
-            </div>
-          ))}
-          <div className="flex items-center justify-between px-4 py-3">
-            <p className="font-heading text-lg">Total</p>
-            <p className="font-heading text-lg tnum">{formatMoney(total)}</p>
+          <div className="p-4 border-b border-[var(--color-border)]">
+            <h2 className="font-medium">Cart</h2>
           </div>
-        </div>
-      )}
-
-      {error && (
-        <p className="mt-4 rounded bg-[var(--color-danger-bg)] px-3 py-2 text-sm text-[var(--color-danger)]">
-          {error}
-        </p>
-      )}
-
-      <button
-        onClick={handleCheckout}
-        disabled={cart.length === 0 || submitting}
-        className="mt-6 rounded bg-[var(--color-primary)] px-5 py-2.5 text-sm text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
-      >
-        {submitting ? "Creating bill…" : "Create bill"}
-      </button>
-    </div>
-  );
-}
+          <ul className="divide-y divide-[var(--color-border)]">
+            {cart.map((line) => (
+              <li key={line.product.id} className="p-4 flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{line.product.name}</p>
+                  <p className="text-sm text-[var(--color-ink-muted)] tnum">
+                    {formatMoney(line.product.price)} × {line.quantity}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateQuantity(line.product.id, line.quantity - 1)}
+                    className="rounded border border-[var(--color-border)] px-2 py-1 text-sm hover:bg-[var(--color-paper)]"
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <span className="tnum w-8 text-center">{line.quantity}</span>
+                  <button
+                    onClick={() => updateQuantity(line.product.id, line.quantity + 1
