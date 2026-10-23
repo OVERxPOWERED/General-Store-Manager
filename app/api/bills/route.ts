@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const bills = await prisma.bill.findMany({
     orderBy: { createdAt: "desc" },
-    include: { items: true },
+    include: { items: true, customer: true },
   });
   return NextResponse.json(bills);
 }
@@ -14,6 +14,7 @@ type IncomingItem = { productId: string; quantity: number };
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const items: IncomingItem[] = body.items;
+  const customerId: string | undefined = body.customerId;
 
   if (!items || items.length === 0) {
     return NextResponse.json({ error: "Bill must have at least one item" }, { status: 400 });
@@ -41,18 +42,37 @@ export async function POST(req: NextRequest) {
         };
       });
 
+      // Validate customer exists if customerId provided
+      if (customerId) {
+        const customer = await tx.customer.findUnique({
+          where: { id: customerId },
+        });
+        if (!customer) {
+          throw new Error("Customer not found");
+        }
+      }
+
       const newBill = await tx.bill.create({
         data: {
           totalAmount: total,
+          customerId: customerId ?? null,
           items: { create: itemsData },
         },
-        include: { items: { include: { product: true } } },
+        include: { items: { include: { product: true } }, customer: true },
       });
 
       for (const item of items) {
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
+        });
+      }
+
+      // Update customer balance (increment = customer owes more)
+      if (customerId) {
+        await tx.customer.update({
+          where: { id: customerId },
+          data: { balance: { increment: total } },
         });
       }
 
