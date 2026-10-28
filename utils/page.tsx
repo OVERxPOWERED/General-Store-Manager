@@ -1,187 +1,185 @@
-```tsx
-"use client";
+import { Metadata } from 'next';
+import { prisma } from '@/lib/prisma';
+import Link from 'next/link';
+import { formatCurrency } from '@/lib/utils';
 
-import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from "react";
-import Link from "next/link";
+const PAGE_SIZE = 20;
 
-interface Supplier {
+export const metadata: Metadata = {
+  title: 'Purchase History',
+  description: 'View all purchase records',
+};
+
+interface SearchParams {
+  page?: string;
+}
+
+interface PurchaseWithRelations {
   id: string;
-  name: string;
-  email?: string | null;
-  phone?: string | null;
+  purchaseNumber: string;
+  purchaseDate: Date;
+  status: string;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  notes: string | null;
+  supplier: {
+    id: string;
+    name: string;
+  } | null;
+  items: {
+    id: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    product: {
+      id: string;
+      name: string;
+      sku: string | null;
+    } | null;
+  }[];
 }
 
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  salePrice: number;
-  purchasePrice?: number | null;
-  stock: number;
+async function getPurchases(page: number): Promise<{
+  purchases: PurchaseWithRelations[];
+  totalCount: number;
+  hasNextPage: boolean;
+  totalPages: number;
+}> {
+  const skip = (page - 1) * PAGE_SIZE;
+  
+  const [purchases, totalCount] = await Promise.all([
+    prisma.purchase.findMany({
+      skip,
+      take: PAGE_SIZE + 1,
+      orderBy: { purchaseDate: 'desc' },
+      include: {
+        supplier: {
+          select: { id: true, name: true },
+        },
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, sku: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.purchase.count(),
+  ]);
+
+  const hasNextPage = purchases.length > PAGE_SIZE;
+  const paginatedPurchases = hasNextPage ? purchases.slice(0, PAGE_SIZE) : purchases;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  return {
+    purchases: paginatedPurchases,
+    totalCount,
+    hasNextPage,
+    totalPages,
+  };
 }
 
-interface LineItem {
-  id: string;
-  productId: string;
-  productName: string;
-  productSku: string;
-  quantity: number;
-  unitPrice: number;
-}
-
-interface Toast {
-  id: string;
-  message: string;
-  type: "success" | "error" | "info";
-}
-
-interface ToastContextType {
-  toasts: Toast[];
-  addToast: (message: string, type: Toast["type"]) => void;
-  removeToast: (id: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
-
-function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = useCallback((message: string, type: Toast["type"]) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
-      {children}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`px-4 py-3 rounded-lg shadow-lg text-white min-w-[280px] max-w-md animate-slide-in ${
-              toast.type === "success" ? "bg-green-600" : toast.type === "error" ? "bg-red-600" : "bg-blue-600"
-            }`}
-            onClick={() => removeToast(toast.id)}
-          >
-            {toast.message}
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  );
-}
-
-function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used within a ToastProvider");
-  }
-  return context;
-}
-
-function ProductSearchInput({
-  products,
-  onSelect,
-  disabled = false,
+export default async function PurchaseHistoryPage({
+  searchParams,
 }: {
-  products: Product[];
-  onSelect: (product: Product) => void;
-  disabled?: boolean;
+  searchParams: Promise<SearchParams>;
 }) {
-  const [query, setQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const resolvedSearchParams = await searchParams;
+  const page = Math.max(1, parseInt(resolvedSearchParams.page || '1', 10));
+  
+  const { purchases, totalCount, hasNextPage, totalPages } = await getPurchases(page);
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.sku.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showDropdown) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.min(prev + 1, filteredProducts.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.max(prev - 1, -1));
-    } else if (e.key === "Enter" && highlightedIndex >= 0) {
-      e.preventDefault();
-      onSelect(filteredProducts[highlightedIndex]);
-      setQuery("");
-      setShowDropdown(false);
-      setHighlightedIndex(-1);
-    } else if (e.key === "Escape") {
-      setShowDropdown(false);
-      setHighlightedIndex(-1);
+  const createPageUrl = (pageNum: number) => {
+    const params = new SearchParams();
+    if (pageNum > 1) {
+      params.set('page', pageNum.toString());
     }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setQuery(value);
-    setShowDropdown(true);
-    setHighlightedIndex(-1);
-  };
-
-  const handleBlur = () => {
-    setTimeout(() => setShowDropdown(false), 150);
+    return `/purchases/history?${params.toString()}`;
   };
 
   return (
-    <div className="relative">
-      <input
-        type="text"
-        value={query}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onFocus={() => query && setShowDropdown(true)}
-        onBlur={handleBlur}
-        disabled={disabled}
-        placeholder="Search product by name or SKU..."
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
-      />
-      {showDropdown && filteredProducts.length > 0 && (
-        <ul className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto z-10">
-          {filteredProducts.map((product, index) => (
-            <li
-              key={product.id}
-              onClick={() => {
-                onSelect(product);
-                setQuery("");
-                setShowDropdown(false);
-                setHighlightedIndex(-1);
-              }}
-              onMouseEnter={() => setHighlightedIndex(index)}
-              className={`px-3 py-2 cursor-pointer text-sm ${
-                index === highlightedIndex ? "bg-blue-50 text-blue-900" : "hover:bg-gray-50"
-              }`}
-            >
-              <div className="font-medium">{product.name}</div>
-              <div className="text-xs text-gray-500">SKU: {product.sku} | Stock: {product.stock} | Purchase: ₹{product.purchasePrice?.toFixed(2) ?? "N/A"}</div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {showDropdown && filteredProducts.length === 0 && query && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-center text-gray-500 text-sm z-10">
-          No products found
-        </div>
-      )}
-    </div>
-  );
-}
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Purchase History</h1>
+        <Link
+          href="/purchases/new"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          New Purchase
+        </Link>
+      </div>
 
-function PurchaseForm() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState("");
-  const [lineItems, setLineItems] =
+      {purchases.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No purchases found.</p>
+          <Link
+            href="/purchases/new"
+            className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Create your first purchase
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Purchase #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Items
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {purchases.map((purchase) => (
+                  <tr key={purchase.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {purchase.purchaseNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(purchase.purchaseDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {purchase.supplier?.name || '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {purchase.items.length} item{purchase.items.length !== 1 ? 's' : ''}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                      {formatCurrency(purchase.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          purchase.status === 'RECEIVED'
+                            ? 'bg-green-100 text-green-800'
+                            : purchase.status === 'PARTIAL'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : purchase.status === 'CANCELLED'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue
