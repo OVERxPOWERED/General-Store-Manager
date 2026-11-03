@@ -35,6 +35,20 @@ model Customer {
   @@map("customers")
 }
 
+model Supplier {
+  id        String    @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  purchases Purchase[]
+
+  @@map("suppliers")
+}
+
 model Category {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -47,17 +61,18 @@ model Category {
 }
 
 model Item {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   description String?
   price       Int
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   billItems   BillItem[]
+  purchaseItems PurchaseItem[]
 
   @@map("items")
 }
@@ -94,6 +109,31 @@ model BillItem {
   amount    Int
 
   @@map("bill_items")
+}
+
+model Purchase {
+  id           String       @id @default(cuid())
+  supplierId   String
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items        PurchaseItem[]
+  totalAmount  Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id           String    @id @default(cuid())
+  purchaseId   String
+  purchase     Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantity     Int
+  unitPrice    Int
+  lineTotal    Int
+
+  @@map("purchase_items")
 }
 
 model Payment {
