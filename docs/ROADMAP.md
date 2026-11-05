@@ -22,7 +22,7 @@ Products page. A general store needs to record restocking too.
 Common in general stores: regulars run a tab and pay it off periodically.
 
 - [ ] `Customer` model (name, phone, running balance)
-- [ ] Optional `customerId` on `Bill` — a bill can be "on credit" instead of
+- [x] Optional `customerId` on `Bill` — a bill can be "on credit" instead of
       paid immediately
 - [ ] A way to record a payment against a customer's balance (a `Payment`
       model, or a signed-amount ledger table — decide based on whether you
