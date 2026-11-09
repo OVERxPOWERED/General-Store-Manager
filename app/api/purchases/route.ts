@@ -1,6 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const supplierId = searchParams.get('supplierId') || undefined;
+    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
+
+    const validSortFields = ['createdAt', 'totalAmount'];
+    const validSortOrders = ['asc', 'desc'];
+
+    const safeSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const safeSortOrder = validSortOrders.includes(sortOrder) ? sortOrder : 'desc';
+
+    const skip = (page - 1) * limit;
+    const take = Math.min(limit, 100);
+
+    const where = supplierId ? { supplierId } : {};
+
+    const [purchases, total] = await Promise.all([
+      prisma.purchase.findMany({
+        where,
+        include: {
+          supplier: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+        orderBy: { [safeSortBy]: safeSortOrder },
+        skip,
+        take,
+      }),
+      prisma.purchase.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      data: purchases,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error('Purchase list error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch purchases' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
