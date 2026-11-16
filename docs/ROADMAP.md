@@ -1,7 +1,7 @@
 # Roadmap
 
 v1 (done) covers: products (CRUD + stock), billing (cart → bill, stock
-deduction), bill history, printable/PDF receipts. Everything below is
+deduction), bill history, printable/PDF receipts, **purchases (supplier restocking)**. Everything below is
 not yet built — pick items top-down; later items sometimes depend on earlier
 ones.
 
@@ -10,12 +10,12 @@ ones.
 Right now stock only goes down (via bills) or gets hand-edited on the
 Products page. A general store needs to record restocking too.
 
-- [ ] Add a `Supplier` model (name, contact info) and a `Purchase` +
+- [x] Add a `Supplier` model (name, contact info) and a `Purchase` +
       `PurchaseItem` model, mirroring the shape of `Bill`/`BillItem`
-- [ ] `POST /api/purchases` — same transactional pattern as bill creation,
+- [x] `POST /api/purchases` — same transactional pattern as bill creation,
       but **increments** stock instead of decrementing it
-- [ ] A `/purchases` page: pick a supplier, add line items, submit
-- [ ] Purchase history list, similar to `/bills`
+- [x] A `/purchases` page: pick a supplier, add line items, submit
+- [x] Purchase history list, similar to `/bills`
 
 ## 2. Customers with running credit/dues
 
