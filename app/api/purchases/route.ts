@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         await tx.product.update({
           where: { id: item.productId },
           data: {
-            stock: {
+            stockQuantity: {
               increment: item.quantity,
             },
           },
@@ -151,9 +151,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(purchase, { status: 201 });
   } catch (error) {
+    console.error('Purchase creation error:', error);
+    
     if (error instanceof Error) {
       if (error.message === 'SUPPLIER_NOT_FOUND') {
-        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: 'Supplier not found' },
+          { status: 404 }
+        );
       }
       if (error.message.startsWith('PRODUCTS_NOT_FOUND:')) {
         const missingIds = error.message.split(':')[1];
@@ -163,8 +168,7 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-
-    console.error('Purchase creation error:', error);
+    
     return NextResponse.json(
       { error: 'Failed to create purchase' },
       { status: 500 }
