@@ -152,242 +152,169 @@ export default function PurchasesPage() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to create purchase');
       }
 
-      setSuccess('Purchase created successfully!');
+      const purchase = await res.json();
+      setSuccess(`Purchase #${purchase.id} created successfully`);
       setCart([]);
       setSelectedSupplierId('');
+      await fetchProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const isLowStock = (product: Product) => {
-    return product.stock <= product.lowStockThreshold;
-  };
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-3xl font-bold text-[var(--color-text)]">
-          New Purchase
-        </h1>
-      </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Create Purchase Order</h1>
 
       {(error || success) && (
-        <div
-          className={`mb-6 p-4 rounded-lg ${
-            error
-              ? 'bg-red-500/10 border border-red-500/30 text-red-500'
-              : 'bg-green-500/10 border border-green-500/30 text-green-500'
-          }`}
-          role="alert"
-        >
+        <div className={`p-4 rounded-md ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
           {error || success}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <section className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
-            <h2 className="font-heading text-lg font-semibold text-[var(--color-text)] mb-4">
-              Supplier
-            </h2>
+          <div>
+            <label className="block text-sm font-medium mb-2">Supplier</label>
             <select
               value={selectedSupplierId}
               onChange={(e) => setSelectedSupplierId(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select a supplier</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name} {supplier.email && `(${supplier.email})`}
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </select>
-          </section>
+          </div>
 
-          <section className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
-            <h2 className="font-heading text-lg font-semibold text-[var(--color-text)] mb-4">
-              Add Products
-            </h2>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search products by name or SKU..."
-                className="w-full px-4 py-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-              />
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {filteredProducts.length === 0 ? (
-                <p className="text-center text-[var(--color-muted)] py-8">
-                  {query ? 'No products match your search' : 'No products available'}
-                </p>
-              ) : (
-                <ul className="divide-y divide-[var(--color-border)]">
-                  {filteredProducts.map((product) => (
-                    <li
-                      key={product.id}
-                      className="flex items-center justify-between p-4 hover:bg-[var(--color-muted)]/20 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-[var(--color-text)] truncate">
-                            {product.name}
-                          </span>
-                          <span className="text-sm text-[var(--color-muted)] font-mono">
-                            {product.sku}
-                          </span>
-                          {isLowStock(product) && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/30">
-                              Low Stock
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-[var(--color-muted)]">
-                          <span>Stock: {product.stock}</span>
-                          <span className="font-medium text-[var(--color-text)]">
-                            {formatMoney(product.price)}
-                          </span>
-                        </div>
-                      </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Search Products</label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or SKU..."
+              className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Product</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">SKU</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Stock</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Price</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredProducts.map((product) => (
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">{product.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{product.sku}</td>
+                    <td className="px-4 py-3">
+                      <span className={product.stock <= product.lowStockThreshold ? 'text-red-600 font-medium' : ''}>
+                        {product.stock}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{formatMoney(product.price)}</td>
+                    <td className="px-4 py-3">
                       <button
                         onClick={() => addToCart(product)}
-                        className="px-4 py-2 bg-[var(--color-primary)] text-white font-medium rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors whitespace-nowrap"
+                        disabled={product.stock === 0}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
                         Add
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
+                    </td>
+                  </tr>
+                ))}
+                {filteredProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      No products found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="lg:col-span-1">
-          <section className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6 sticky top-24">
-            <h2 className="font-heading text-lg font-semibold text-[var(--color-text)] mb-4">
-              Cart ({cart.length})
-            </h2>
+          <div className="bg-gray-50 rounded-lg p-4 sticky top-24">
+            <h2 className="text-lg font-semibold mb-4">Cart ({cart.length})</h2>
             {cart.length === 0 ? (
-              <div className="text-center text-[var(--color-muted)] py-12">
-                <svg
-                  className="mx-auto h-12 w-12 text-[var(--color-muted)]/50"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                  />
-                </svg>
-                <p className="mt-4">Cart is empty</p>
-                <p className="text-sm">Add products from the list</p>
-              </div>
+              <p className="text-gray-500 text-center py-8">Cart is empty</p>
             ) : (
               <>
-                <div className="overflow-x-auto mb-4">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-[var(--color-muted)] border-b border-[var(--color-border)]">
-                        <th className="pb-2">Product</th>
-                        <th className="pb-2 text-right">Qty</th>
-                        <th className="pb-2 text-right">Subtotal</th>
-                        <th className="pb-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--color-border)]">
-                      {cart.map((item) => (
-                        <tr key={item.product.id}>
-                          <td className="py-3">
-                            <div className="font-medium text-[var(--color-text)]">
-                              {item.product.name}
-                            </div>
-                            <div className="text-xs text-[var(--color-muted)] font-mono">
-                              {item.product.sku}
-                            </div>
-                          </td>
-                          <td className="py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() =>
-                                  updateQuantity(item.product.id, item.quantity - 1)
-                                }
-                                className="w-8 h-8 flex items-center justify-center rounded border border-[var(--color-border)] hover:bg-[var(--color-muted)] transition-colors"
-                                aria-label="Decrease quantity"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                                </svg>
-                              </button>
-                              <span className="w-10 text-center font-medium">{item.quantity}</span>
-                              <button
-                                onClick={() =>
-                                  updateQuantity(item.product.id, item.quantity + 1)
-                                }
-                                className="w-8 h-8 flex items-center justify-center rounded border border-[var(--color-border)] hover:bg-[var(--color-muted)] transition-colors"
-                                aria-label="Increase quantity"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                              </button>
-                            </div>
-                          </td>
-                          <td className="py-3 text-right font-medium text-[var(--color-text)]">
-                            {formatMoney(getSubtotal(item))}
-                          </td>
-                          <td className="py-3 text-right">
-                            <button
-                              onClick={() => removeFromCart(item.product.id)}
-                              className="text-[var(--color-muted)] hover:text-red-500 transition-colors"
-                              aria-label="Remove item"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {cart.map((item) => (
+                    <div key={item.product.id} className="flex items-center gap-3 p-2 bg-white rounded border">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.product.name}</p>
+                        <p className="text-sm text-gray-500">{formatMoney(item.unitPrice)} each</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-100"
+                        >
+                          -
+                        </button>
+                        <span className="w-10 text-center">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-100"
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="ml-2 text-red-500 hover:text-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="border-t border-[var(--color-border)] pt-4 space-y-3">
-                  <div className="flex justify-between text-[var(--color-text)]">
-                    <span>Subtotal</span>
-                    <span className="font-medium">{formatMoney(getTotal())}</span>
-                  </div>
-                  <div className="flex justify-between text-[var(--color-text)] font-semibold text-lg">
+                <div className="mt-4 border-t pt-4 space-y-2">
+                  {cart.map((item) => (
+                    <div key={item.product.id} className="flex justify-between text-sm">
+                      <span>{item.product.name} × {item.quantity}</span>
+                      <span>{formatMoney(getSubtotal(item))}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-semibold border-t pt-2">
                     <span>Total</span>
                     <span>{formatMoney(getTotal())}</span>
                   </div>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={submitting || !selectedSupplierId || cart.length === 0}
-                    className="w-full py-3 bg-[var(--color-primary)] text-white font-medium rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? 'Creating...' : 'Create Purchase'}
-                  </button>
-                  {!selectedSupplierId && cart.length > 0 && (
-                    <p className="text-sm text-amber-500 text-center">
-                      Please select a supplier to proceed
-                    </p>
-                  )}
                 </div>
+                <form onSubmit={handleSubmit}>
+                  <button
+                    type="submit"
+                    disabled={submitting || !selectedSupplierId || cart.length === 0}
+                    className="w-full mt-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                  >
+                    {submitting ? 'Creating Purchase...' : 'Submit Purchase Order'}
+                  </button>
+                </form>
               </>
             )}
-          </section>
+          </div>
         </div>
       </div>
     </div>
