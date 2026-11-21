@@ -58,6 +58,7 @@ model Customer {
   phone     String?
   address   String?
   gstin     String?
+  balance   Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -86,21 +87,21 @@ model Supplier {
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  sku         String   @unique
-  barcode     String?  @unique
-  unit        String   @default("PCS")
-  hsnCode     String?
-  taxRate     Float    @default(18)
-  purchasePrice Float  @default(0)
-  salePrice   Float    @default(0)
-  stock       Int      @default(0)
-  minStock    Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  sku          String   @unique
+  barcode      String?  @unique
+  unit         String   @default("PCS")
+  hsnCode      String?
+  taxRate      Float    @default(18)
+  purchasePrice Float   @default(0)
+  salePrice    Float    @default(0)
+  stock        Int      @default(0)
+  minStock     Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   billItems     BillItem[]
   purchaseItems PurchaseItem[]
@@ -163,7 +164,9 @@ model Payment {
   amount      Float
   method      PaymentMethod
   reference   String?
+  notes       String?
   paidAt      DateTime      @default(now())
+  createdAt   DateTime      @default(now())
 
   @@index([billId])
   @@index([userId])
@@ -172,20 +175,22 @@ model Payment {
 }
 
 model Purchase {
-  id            String         @id @default(cuid())
-  purchaseNumber String        @unique
-  supplierId    String
-  supplier      Supplier       @relation(fields: [supplierId], references: [id])
-  userId        String
-  user          User           @relation("UserPurchases", fields: [userId], references: [id])
-  status        PurchaseStatus @default(DRAFT)
-  subtotal      Float          @default(0)
-  taxAmount     Float          @default(0)
-  discount      Float          @default(0)
-  totalAmount   Float          @default(0)
-  notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  purchaseNumber  String         @unique
+  supplierId      String
+  supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  userId          String
+  user            User           @relation("UserPurchases", fields: [userId], references: [id])
+  status          PurchaseStatus @default(DRAFT)
+  subtotal        Float          @default(0)
+  taxAmount       Float          @default(0)
+  discount        Float          @default(0)
+  totalAmount     Float          @default(0)
+  notes           String?
+  expectedAt      DateTime?
+  receivedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   items PurchaseItem[]
 
@@ -197,28 +202,18 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id        String @id @default(cuid())
-  purchaseId String
-  purchase  Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  unitPrice Float
-  taxRate   Float
-  discount  Float @default(0)
-  lineTotal Float
+  id            String   @id @default(cuid())
+  purchaseId    String
+  purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Int
+  unitPrice     Float
+  taxRate       Float
+  discount      Float    @default(0)
+  lineTotal     Float
 
   @@index([purchaseId])
   @@index([productId])
   @@map("purchase_items")
-}
-
-model Settings {
-  id            String @id @default(cuid())
-  key           String @unique
-  value         String
-  description   String?
-  updatedAt     DateTime @updatedAt
-
-  @@map("settings")
 }
