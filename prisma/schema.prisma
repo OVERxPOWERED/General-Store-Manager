@@ -36,33 +36,35 @@ enum PurchaseStatus {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      Role     @default(STAFF)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String         @id @default(cuid())
+  email           String         @unique
+  name            String?
+  password        String
+  role            Role           @default(STAFF)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  bills     Bill[]       @relation("UserBills")
-  payments  Payment[]    @relation("UserPayments")
-  purchases Purchase[]   @relation("UserPurchases")
+  bills           Bill[]         @relation("UserBills")
+  billPayments    BillPayment[]  @relation("UserBillPayments")
+  customerPayments Payment[]     @relation("UserCustomerPayments")
+  purchases       Purchase[]     @relation("UserPurchases")
 
   @@map("users")
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  phone     String?
-  address   String?
-  gstin     String?
-  balance   Float    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String
+  email         String?   @unique
+  phone         String?
+  address       String?
+  gstin         String?
+  balance       Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  bills Bill[]
+  bills         Bill[]
+  payments      Payment[]
 
   @@index([email])
   @@index([phone])
@@ -87,24 +89,24 @@ model Supplier {
 }
 
 model Product {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  sku          String   @unique
-  barcode      String?  @unique
-  unit         String   @default("PCS")
-  hsnCode      String?
-  taxRate      Float    @default(18)
-  purchasePrice Float   @default(0)
-  salePrice    Float    @default(0)
-  stock        Int      @default(0)
-  minStock     Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  sku           String   @unique
+  barcode       String?  @unique
+  unit          String   @default("PCS")
+  hsnCode       String?
+  taxRate       Float    @default(18)
+  purchasePrice Float    @default(0)
+  salePrice     Float    @default(0)
+  stock         Int      @default(0)
+  minStock      Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  billItems     BillItem[]
-  purchaseItems PurchaseItem[]
+  billItems       BillItem[]
+  purchaseItems   PurchaseItem[]
 
   @@index([sku])
   @@index([barcode])
@@ -128,8 +130,8 @@ model Bill {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  items     BillItem[]
-  payments  Payment[]
+  items       BillItem[]
+  payments    BillPayment[]
 
   @@index([customerId])
   @@index([userId])
@@ -155,12 +157,12 @@ model BillItem {
   @@map("bill_items")
 }
 
-model Payment {
+model BillPayment {
   id          String        @id @default(cuid())
   billId      String
   bill        Bill          @relation(fields: [billId], references: [id], onDelete: Cascade)
   userId      String
-  user        User          @relation("UserPayments", fields: [userId], references: [id])
+  user        User          @relation("UserBillPayments", fields: [userId], references: [id])
   amount      Float
   method      PaymentMethod
   reference   String?
@@ -171,6 +173,25 @@ model Payment {
   @@index([billId])
   @@index([userId])
   @@index([paidAt])
+  @@map("bill_payments")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User          @relation("UserCustomerPayments", fields: [userId], references: [id])
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  reference     String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([customerId])
+  @@index([userId])
+  @@index([createdAt])
   @@map("payments")
 }
 
@@ -187,8 +208,6 @@ model Purchase {
   discount        Float          @default(0)
   totalAmount     Float          @default(0)
   notes           String?
-  expectedAt      DateTime?
-  receivedAt      DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -202,15 +221,15 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id            String   @id @default(cuid())
+  id            String @id @default(cuid())
   purchaseId    String
   purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   productId     String
-  product       Product  @relation(fields: [productId], references: [id])
+  product       Product @relation(fields: [productId], references: [id])
   quantity      Int
   unitPrice     Float
   taxRate       Float
-  discount      Float    @default(0)
+  discount      Float @default(0)
   lineTotal     Float
 
   @@index([purchaseId])
